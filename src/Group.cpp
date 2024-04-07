@@ -9,6 +9,7 @@
 #include <string_view>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 using namespace drogon;
 using std::string;
@@ -103,15 +104,72 @@ void Group::add(const UserPtr& user)
 
 UserPtr Group::get(std::string_view id, bool extendLifespan) const
 {
-	shared_lock lock(mutex_);
-	auto find = users_.find(id);
-	if(find == users_.end())
-		return nullptr;
+	UserPtr user = nullptr;
+	{
+		shared_lock lock(mutex_);
+		auto find = users_.find(id);
+		if(find == users_.end())
+			return std::move(user);
 
-	UserPtr user = find->second;
+		user = find->second;
+	}
+
 	if(extendLifespan)
 		User::prolongPurge(user->id_);
+
 	return std::move(user);
+}
+
+std::vector<UserPtr> Group::getBulk(const std::vector<string_view>& ids, bool extendLifespans) const
+{
+	std::vector<UserPtr> users;
+	users.reserve(ids.size());
+
+	std::vector<string_view> idRefs;
+	users.reserve(ids.size());
+
+	shared_lock lock(mutex_);
+	for(string_view id : ids)
+	{
+		auto find = users_.find(id);
+		if(find == users_.end())
+			continue;
+
+		UserPtr user = find->second;
+		idRefs.emplace_back(user->id_);
+		users.emplace_back(std::move(user));
+	}
+
+	if(extendLifespans)
+		User::prolongPurges(idRefs);
+
+	return users;
+}
+
+std::vector<UserPtr> Group::getBulk(const std::vector<string>& ids, bool extendLifespans) const
+{
+	std::vector<UserPtr> users;
+	users.reserve(ids.size());
+
+	std::vector<string_view> idRefs;
+	users.reserve(ids.size());
+
+	shared_lock lock(mutex_);
+	for(string_view id : ids)
+	{
+		auto find = users_.find(id);
+		if(find == users_.end())
+			continue;
+
+		UserPtr user = find->second;
+		idRefs.emplace_back(user->id_);
+		users.emplace_back(std::move(user));
+	}
+
+	if(extendLifespans)
+		User::prolongPurges(idRefs);
+
+	return users;
 }
 
 void Group::remove(const UserPtr& user)
