@@ -36,13 +36,13 @@ public:
 	{
 		return User::get(conn);
 	}
-	std::vector<UserPtr> getBulk(const std::vector<std::string_view>& ids, bool extendLifespans = false) const;
-	std::vector<UserPtr> getBulk(const std::vector<std::string>& ids, bool extendLifespans = false) const;
 	void remove(const UserPtr& user);
 
 	static GroupPtr createGroup(std::string_view id, const UserPtr& user);
 	static void createGroupBatch(const std::vector<std::string_view>& ids, const UserPtr& user);
 	static GroupPtr getGroup(std::string_view id);
+	static std::vector<GroupPtr> getGroups(const std::vector<std::string_view>& ids);
+	static std::vector<GroupPtr> getGroups(const std::vector<std::string>& ids);
 
 	std::string_view id() const;
 

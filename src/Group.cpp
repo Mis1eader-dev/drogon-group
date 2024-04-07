@@ -96,6 +96,42 @@ GroupPtr Group::getGroup(string_view id)
 	return find != groups_.end() ? find->second : nullptr;
 }
 
+std::vector<GroupPtr> Group::getGroups(const std::vector<string_view>& ids)
+{
+	std::vector<GroupPtr> groups;
+	groups.reserve(ids.size());
+
+	shared_lock slock(::mutex_);
+	auto end = groups_.end();
+	for(string_view id : ids)
+	{
+		auto find = groups_.find(id);
+		if(find == end)
+			continue;
+
+		groups.emplace_back(find->second);
+	}
+	return groups;
+}
+
+std::vector<GroupPtr> Group::getGroups(const std::vector<string>& ids)
+{
+	std::vector<GroupPtr> groups;
+	groups.reserve(ids.size());
+
+	shared_lock slock(::mutex_);
+	auto end = groups_.end();
+	for(string_view id : ids)
+	{
+		auto find = groups_.find(id);
+		if(find == end)
+			continue;
+
+		groups.emplace_back(find->second);
+	}
+	return groups;
+}
+
 void Group::add(const UserPtr& user)
 {
 	scoped_lock lock(mutex_);
@@ -106,7 +142,7 @@ UserPtr Group::get(std::string_view id, bool extendLifespan) const
 {
 	UserPtr user = nullptr;
 	{
-		shared_lock lock(mutex_);
+		shared_lock slock(mutex_);
 		auto find = users_.find(id);
 		if(find == users_.end())
 			return std::move(user);
@@ -118,58 +154,6 @@ UserPtr Group::get(std::string_view id, bool extendLifespan) const
 		User::prolongPurge(user->id_);
 
 	return std::move(user);
-}
-
-std::vector<UserPtr> Group::getBulk(const std::vector<string_view>& ids, bool extendLifespans) const
-{
-	std::vector<UserPtr> users;
-	users.reserve(ids.size());
-
-	std::vector<string_view> idRefs;
-	users.reserve(ids.size());
-
-	shared_lock lock(mutex_);
-	for(string_view id : ids)
-	{
-		auto find = users_.find(id);
-		if(find == users_.end())
-			continue;
-
-		UserPtr user = find->second;
-		idRefs.emplace_back(user->id_);
-		users.emplace_back(std::move(user));
-	}
-
-	if(extendLifespans)
-		User::prolongPurges(idRefs);
-
-	return users;
-}
-
-std::vector<UserPtr> Group::getBulk(const std::vector<string>& ids, bool extendLifespans) const
-{
-	std::vector<UserPtr> users;
-	users.reserve(ids.size());
-
-	std::vector<string_view> idRefs;
-	users.reserve(ids.size());
-
-	shared_lock lock(mutex_);
-	for(string_view id : ids)
-	{
-		auto find = users_.find(id);
-		if(find == users_.end())
-			continue;
-
-		UserPtr user = find->second;
-		idRefs.emplace_back(user->id_);
-		users.emplace_back(std::move(user));
-	}
-
-	if(extendLifespans)
-		User::prolongPurges(idRefs);
-
-	return users;
 }
 
 void Group::remove(const UserPtr& user)
@@ -259,7 +243,7 @@ void Group::notifyAllExcept(const WebSocketConnectionPtr& conn, Room& room, cons
 	notifyAllExcept(user, room, msg, len, type);
 
 	const auto& connsMap = user->conns_;
-	shared_lock lock(user->mutex_);
+	shared_lock slock(user->mutex_);
 	const auto find = connsMap.find(&room);
 	if(find == connsMap.end())
 		return;
