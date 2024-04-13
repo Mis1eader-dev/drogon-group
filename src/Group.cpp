@@ -285,3 +285,15 @@ GroupPtr User::firstGroup(size_t sizePredicate) const
 		sizePredicate > 0 && groups_.size() == sizePredicate
 	) ? std::move(groups_.begin()->second) : nullptr;
 }
+
+std::vector<GroupPtr> User::groups() const
+{
+	std::vector<GroupPtr> groups;
+
+	shared_lock slock(groupsMutex_);
+	groups.reserve(groups_.size());
+	for(const auto& [_, group] : groups_)
+		groups.emplace_back(group);
+
+	return groups;
+}
