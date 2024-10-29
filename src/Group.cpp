@@ -38,7 +38,7 @@ Group::Group(string_view id, const UserPtr& user) :
 	id_(id),
 	users_({
 		{
-			user->id(), user
+			user->id_, user
 		}
 	})
 {}
@@ -46,45 +46,37 @@ Group::Group(string_view id, const UserPtr& user) :
 GroupPtr Group::createGroup(string_view id, const UserPtr& user)
 {
 	GroupPtr group = std::make_shared<Group>(string(id), user);
-	auto pair = std::make_pair(group->id(), group);
+	id = group->id_;
 	{
 		scoped_lock lock(::mutex_);
-		groups_.insert(pair);
+		groups_.emplace(id, group);
 	}
 	{
 		scoped_lock lock(user->groupsMutex_);
-		user->groups_.insert(
-			std::move(pair)
-		);
+		user->groups_.emplace(id, group);
 	}
-	return std::move(group);
+	return group;
 }
 void Group::createGroupBatch(const std::vector<string_view>& ids, const UserPtr& user)
 {
-	scoped_lock lock(user->groupsMutex_);
+	scoped_lock lock(user->groupsMutex_, ::mutex_);
 	for(string_view id : ids)
 	{
 		GroupPtr group = getGroup(id);
 		if(group)
 		{
 			group->add(user);
-
-			auto pair = std::make_pair(group->id(), group);
-			user->groups_.insert( // already locked groupsMutex_
-				std::move(pair)
+			user->groups_.emplace( // already locked groupsMutex_
+				group->id_, group
 			);
 			continue;
 		}
 
 		group = std::make_shared<Group>(id, user);
-		auto pair = std::make_pair(group->id(), group);
-		{
-			scoped_lock lock2(::mutex_);
-			groups_.insert(pair);
-		}
-
-		user->groups_.insert( // already locked groupsMutex_
-			std::move(pair)
+		id = group->id_;
+		groups_.emplace(id, group);
+		user->groups_.emplace( // already locked groupsMutex_
+			id, group
 		);
 	}
 }
@@ -135,7 +127,7 @@ std::vector<GroupPtr> Group::getGroups(const std::vector<string>& ids)
 void Group::add(const UserPtr& user)
 {
 	scoped_lock lock(mutex_);
-	users_[user->id()] = user;
+	users_[user->id_] = user;
 }
 
 UserPtr Group::get(std::string_view id, bool extendLifespan) const
@@ -162,7 +154,7 @@ void Group::remove(const UserPtr& user)
 		scoped_lock lock(mutex_);
 		if(users_.size() != 1)
 		{
-			users_.erase(user->id());
+			users_.erase(user->id_);
 			return;
 		}
 		users_.clear();
