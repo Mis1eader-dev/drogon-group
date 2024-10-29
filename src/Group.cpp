@@ -62,9 +62,11 @@ void Group::createGroupBatch(const std::vector<string_view>& ids, const UserPtr&
 	scoped_lock lock(user->groupsMutex_, ::mutex_);
 	for(string_view id : ids)
 	{
-		GroupPtr group = getGroup(id);
-		if(group)
+		GroupPtr group;
+		auto find = groups_.find(id);
+		if(find != groups_.end())
 		{
+			group = find->second;
 			group->add(user);
 			user->groups_.emplace( // already locked groupsMutex_
 				group->id_, group
