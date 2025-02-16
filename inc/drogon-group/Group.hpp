@@ -4,6 +4,7 @@
 #include "drogon-user/User.hpp"
 #include "drogon/HttpRequest.h"
 #include "drogon/WebSocketConnection.h"
+#include <functional>
 #include <json/value.h>
 #include <memory>
 #include <string>
@@ -37,6 +38,8 @@ public:
 		return User::get(conn);
 	}
 	void remove(const UserPtr& user);
+
+	void removeAll(std::function<void (const UserPtr& user)>&& callback = nullptr);
 
 	static GroupPtr createGroup(std::string_view id, const UserPtr& user);
 	static void createGroupBatch(const std::vector<std::string_view>& ids, const UserPtr& user);

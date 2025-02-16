@@ -166,6 +166,23 @@ void Group::remove(const UserPtr& user)
 	groups_.erase(id_);
 }
 
+void Group::removeAll(std::function<void (const UserPtr& user)>&& callback)
+{
+	{
+		scoped_lock lock(mutex_);
+		for(auto [_, user] : users_)
+		{
+			user->removeGroup(id_);
+			if(callback)
+				callback(user);
+		}
+		users_.clear();
+	}
+
+	scoped_lock lock(::mutex_);
+	groups_.erase(id_);
+}
+
 string_view Group::id() const
 {
 	return id_;
@@ -278,6 +295,12 @@ GroupPtr User::firstGroup(size_t sizePredicate) const
 		sizePredicate == 0 && !groups_.empty() ||
 		sizePredicate > 0 && groups_.size() == sizePredicate
 	) ? std::move(groups_.begin()->second) : nullptr;
+}
+
+void User::removeGroup(string_view id)
+{
+	scoped_lock lock(groupsMutex_);
+	groups_.erase(id);
 }
 
 std::vector<GroupPtr> User::groups() const
