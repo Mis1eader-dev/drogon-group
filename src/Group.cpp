@@ -129,7 +129,7 @@ std::vector<GroupPtr> Group::getGroups(const std::vector<string>& ids)
 void Group::add(const UserPtr& user)
 {
 	scoped_lock lock(mutex_);
-	users_[user->id_] = user;
+	users_.emplace(user->id_, user);
 }
 
 UserPtr Group::get(std::string_view id, bool extendLifespan) const
@@ -295,6 +295,12 @@ GroupPtr User::firstGroup(size_t sizePredicate) const
 		sizePredicate == 0 && !groups_.empty() ||
 		sizePredicate > 0 && groups_.size() == sizePredicate
 	) ? std::move(groups_.begin()->second) : nullptr;
+}
+
+void User::addGroup(const GroupPtr& group)
+{
+	scoped_lock lock(groupsMutex_);
+	groups_.emplace(group->id(), group);
 }
 
 void User::removeGroup(string_view id)
